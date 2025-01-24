@@ -1,14 +1,24 @@
-# Welcome view content
+# Calico Colors — Webview View API Sample
 
-This sample demonstrates how to implement welcome view content, which gets displayed in certain views whenever they are empty.
+Demonstrates VS Code's [webview view API](https://github.com/microsoft/vscode/issues/46585). This includes:
 
-Run the sample and run `Close Workspace`. In the _no workspace_ window, go to the Explorer. You'll see the content contributed via the `package.json` declaration.
+- Contributing a webview based view to the explorer.
+- Posting messages from an extension to a webview view
+- Posting message from a webview to an extension  
+- Persisting state in the view.
+- Contributing commands to the view title.
 
-## Running the Sample
+## VS Code API
 
-- Open this example in VS Code Insiders
+### `vscode` module
+
+- [`window.registerWebviewViewProvider`](https://code.visualstudio.com/api/references/vscode-api#window.registerWebviewViewProvider)
+
+## Running the example
+
+- Open this example in VS Code 1.49+
 - `npm install`
-- `npm run watch`
+- `npm run watch` or `npm run compile`
 - `F5` to start debugging
-- Run the `Workspaces: Close Workspace` command
-- Open the Explorer view
+
+In the explorer, expand the `Calico Colors` view.
