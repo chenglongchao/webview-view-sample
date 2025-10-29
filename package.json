@@ -1,71 +1,84 @@
 {
-	"name": "calico-colors",
-	"description": "Calico Colors - A Webview View API Sample",
-	"version": "0.0.1",
-	"publisher": "vscode-samples",
-	"private": true,
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
-	},
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"extensionKind": [
-		"ui",
-		"workspace"
-	],
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [],
-	"main": "./out/extension.js",
-	"contributes": {
-		"views": {
-			"explorer": [
-				{
-					"type": "webview",
-					"id": "calicoColors.colorsView",
-					"name": "Calico Colors"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "calicoColors.addColor",
-				"category": "Calico Colors",
-				"title": "Add Color"
-			},
-			{
-				"command": "calicoColors.clearColors",
-				"category": "Calico Colors",
-				"title": "Clear Colors",
-				"icon": "$(clear-all)"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "calicoColors.clearColors",
-					"group": "navigation",
-					"when": "view == calicoColors.colorsView"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint",
-		"watch": "tsc -w -p ./"
-	},
-	"devDependencies": {
-		"@eslint/js": "^9.13.0",
-		"@stylistic/eslint-plugin": "^2.9.0",
-		"@types/vscode": "^1.73.0",
-		"eslint": "^9.13.0",
-		"typescript": "^5.7.2",
-		"typescript-eslint": "^8.16.0"
-	}
+    "name": "name-plug",
+    "displayName": "Name Plug",
+    "description": "A sample VSCode extension",
+    "version": "0.0.1",
+    "publisher": "your-name",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "calicoColors",
+                    "title": "反向查找引用",
+                    "icon": "resources/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "calicoColors": [
+                {
+                    "type": "webview",
+                    "id": "calicoColors.colorsView",
+                    "name": ""
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "calicoColors.customCommand",
+                "title": "反向查找引用"
+            },
+            {
+                "command": "calicoColors.reverseLookup",
+                "title": "反向查找引用"
+            }
+        ],
+        "menus": {
+            "view/title": [],
+            "editor/context": [
+                {
+                    "command": "calicoColors.customCommand",
+                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx'"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "calicoColors.reverseLookup",
+                    "group": "navigation",
+                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx'"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "calicoColors.reverseLookup",
+                    "when": "editorHasDocumentSymbolProvider"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.13.0",
+        "@stylistic/eslint-plugin": "^2.9.0",
+        "@types/node": "^22.10.5",
+        "@types/vscode": "^1.96.0",
+        "eslint": "^9.13.0",
+        "typescript": "^5.7.2",
+        "typescript-eslint": "^8.16.0"
+    },
+    "dependencies": {
+        "clc_quote": "^1.0.1",
+        "fs": "*",
+        "path": "^0.12.7"
+    }
 }
