@@ -15,7 +15,7 @@
                 {
                     "id": "calicoColors",
                     "title": "反向查找引用",
-                    "icon": "resources/icon.svg"
+                    "icon": "$(symbol-reference)"
                 }
             ]
         },
@@ -25,7 +25,7 @@
                     "type": "webview",
                     "id": "calicoColors.colorsView",
                     "name": "",
-                    "icon": "$(search)"
+                    "icon": "$(symbol-reference)"
                 }
             ]
         },
