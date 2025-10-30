@@ -44,14 +44,14 @@
             "editor/context": [
                 {
                     "command": "calicoColors.reverseLookup",
-                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx'"
+                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx' || resourceExtname == '.vue'"
                 }
             ],
             "explorer/context": [
                 {
                     "command": "calicoColors.reverseLookup",
                     "group": "navigation",
-                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx'"
+                    "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx' || resourceExtname == '.vue'"
                 }
             ],
             "editor/title": [
