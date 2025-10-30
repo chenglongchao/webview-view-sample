@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反向查找引用</title>
+    
+    <!-- VS Code WebView UI Toolkit -->
+    <script type="module" src="https://unpkg.com/@vscode/webview-ui-toolkit@1.4.0/dist/toolkit.js"></script>
+    
+    <style>
+        body {
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-foreground);
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            margin: 0;
+            padding: 16px;
+        }
+
+        .search-summary {
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .file-group {
+            margin-bottom: 8px;
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+        }
+
+        .file-header:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .file-name {
+            color: var(--vscode-symbolIcon-fileForeground);
+            font-weight: 500;
+            margin-left: 8px;
+        }
+
+        .file-path {
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .reference-list {
+            margin-left: 24px;
+            margin-top: 4px;
+        }
+
+        .reference-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            margin-bottom: 2px;
+        }
+
+        .reference-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        .line-number {
+            min-width: 30px;
+            font-size: 11px;
+            color: var(--vscode-editorLineNumber-foreground);
+            font-family: var(--vscode-editor-font-family);
+        }
+
+        .reference-content {
+            flex: 1;
+            font-size: 12px;
+            font-family: var(--vscode-editor-font-family);
+            margin-left: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .reference-highlight {
+            background-color: var(--vscode-editor-findMatchHighlightBackground);
+            color: var(--vscode-editor-findMatchHighlightForeground);
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        .no-references {
+            text-align: center;
+            padding: 24px;
+            color: var(--vscode-descriptionForeground);
+            font-style: italic;
+        }
+
+        /* VS Code Tree View 样式 */
+        vscode-tree-item {
+            --tree-item-height: 24px;
+        }
+
+        .tree-item-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 2px 4px;
+        }
+
+        .tree-item-icon {
+            margin-right: 6px;
+            color: var(--vscode-symbolIcon-fileForeground);
+        }
+
+        .tree-item-label {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .tree-item-description {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 内容将通过 JavaScript 动态生成 -->
+    </div>
+
+    <script>
+        // WebView API
+        const vscode = acquireVsCodeApi();
+
+        // 监听来自扩展的消息
+        window.addEventListener("message", (event) => {
+            const message = event.data;
+            console.log("收到消息:", message);
+            
+            switch (message.type) {
+                case "showReferences":
+                    showReferencesResults(message.fileName, message.references);
+                    break;
+            }
+        });
+
+        // 按文件分组引用
+        function groupReferencesByFile(references) {
+            const grouped = {};
+            references.forEach(ref => {
+                if (!grouped[ref.file]) {
+                    grouped[ref.file] = [];
+                }
+                grouped[ref.file].push(ref);
+            });
+            return grouped;
+        }
+
+        // 获取唯一文件数量
+        function getUniqueFileCount(references) {
+            const uniqueFiles = new Set(references.map(ref => ref.file));
+            return uniqueFiles.size;
+        }
+
+        // 高亮显示导入内容
+        function highlightImportContent(content, fileName) {
+            const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+            const regex = new RegExp(`(${fileNameWithoutExt})`, 'gi');
+            return content.replace(regex, '<span class="reference-highlight">$1</span>');
+        }
+
+        // 显示引用结果 - 使用 VS Code UI 组件
+        function showReferencesResults(fileName, references) {
+            const container = document.querySelector(".container");
+            container.innerHTML = "";
+
+            // 统计信息
+            const summary = document.createElement("div");
+            summary.className = "search-summary";
+            summary.textContent = `${getUniqueFileCount(references)} 文件中有 ${references.length} 个结果`;
+            container.appendChild(summary);
+
+            if (references.length === 0) {
+                const noResults = document.createElement("div");
+                noResults.className = "no-references";
+                noResults.textContent = `未找到对 "${fileName}" 的引用`;
+                container.appendChild(noResults);
+                return;
+            }
+
+            // 创建树形视图
+            const treeView = document.createElement("vscode-tree");
+            
+            const groupedReferences = groupReferencesByFile(references);
+            
+            Object.entries(groupedReferences).forEach(([filePath, fileReferences]) => {
+                // 文件节点
+                const fileItem = document.createElement("vscode-tree-item");
+                
+                const fileNameOnly = filePath.split('/').pop();
+                const fileDir = filePath.substring(0, filePath.lastIndexOf('/'));
+                
+                const fileContent = document.createElement("div");
+                fileContent.className = "tree-item-content";
+                fileContent.innerHTML = `
+                    <span class="tree-item-icon">📄</span>
+                    <span class="tree-item-label">${fileNameOnly}</span>
+                    <span class="tree-item-description">${fileDir}</span>
+                `;
+                
+                fileItem.appendChild(fileContent);
+
+                // 添加引用项作为子节点
+                fileReferences.forEach(ref => {
+                    const refItem = document.createElement("vscode-tree-item");
+                    
+                    const refContent = document.createElement("div");
+                    refContent.className = "tree-item-content";
+                    
+                    const highlightedContent = highlightImportContent(ref.content, fileName);
+                    
+                    refContent.innerHTML = `
+                        <span class="line-number">${ref.line}</span>
+                        <span class="reference-content">${highlightedContent}</span>
+                    `;
+                    
+                    // 点击跳转
+                    refContent.addEventListener("click", () => {
+                        vscode.postMessage({ 
+                            type: "openFile", 
+                            filePath: ref.file,
+                            line: ref.line 
+                        });
+                    });
+                    
+                    refItem.appendChild(refContent);
+                    fileItem.appendChild(refItem);
+                });
+
+                treeView.appendChild(fileItem);
+            });
+
+            container.appendChild(treeView);
+        }
+    </script>
+</body>
+</html>

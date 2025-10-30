@@ -1,6 +1,24 @@
 // 反向查找引用的webview脚本
 (function () {
-  const vscode = acquireVsCodeApi();
+  const vscode =  // 显示反向查找引用的结果
+  function showReferencesResults(fileName, references) {
+    console.log("显示引用结果:", fileName, references);
+    const container = document.querySelector(".container");
+    if (!container) {
+      console.error("找不到.container元素");
+      return;
+    }
+    
+    // 清空现有内容
+    container.innerHTML = "";
+    
+    // 创建简洁的标题
+    const title = document.createElement("h3");
+    title.textContent = `${references.length} 个引用`;
+    title.style.margin = "0 0 12px 0";
+    title.style.fontSize = "14px";
+    title.style.color = "var(--vscode-foreground)";
+    container.appendChild(title);
 
   // 监听来自扩展的消息
   window.addEventListener("message", (event) => {

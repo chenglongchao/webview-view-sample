@@ -24,14 +24,15 @@
                 {
                     "type": "webview",
                     "id": "calicoColors.colorsView",
-                    "name": ""
+                    "name": "",
+                    "icon": "$(search)"
                 }
             ]
         },
         "commands": [
             {
                 "command": "calicoColors.customCommand",
-                "title": "反向查找引用"
+                "title": "显示文件路径"
             },
             {
                 "command": "calicoColors.reverseLookup",
@@ -42,7 +43,7 @@
             "view/title": [],
             "editor/context": [
                 {
-                    "command": "calicoColors.customCommand",
+                    "command": "calicoColors.reverseLookup",
                     "when": "resourceExtname == '.tsx' || resourceExtname == '.ts' || resourceExtname == '.js' || resourceExtname == '.jsx'"
                 }
             ],
@@ -64,8 +65,7 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install"
+        "watch": "tsc -watch -p ./"
     },
     "devDependencies": {
         "@eslint/js": "^9.13.0",
@@ -77,8 +77,7 @@
         "typescript-eslint": "^8.16.0"
     },
     "dependencies": {
-        "clc_quote": "^1.0.1",
-        "fs": "*",
-        "path": "^0.12.7"
+        "@vscode/webview-ui-toolkit": "^1.4.0",
+        "clc_quote": "^1.0.1"
     }
 }

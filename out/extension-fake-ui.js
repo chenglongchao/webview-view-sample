@@ -70,8 +70,6 @@ function activate(context) {
             // 查找引用
             const references = await findFileReferences(uri.fsPath, workspaceRoot);
             console.log("找到的引用:", references);
-            // 先确保左侧面板可见，然后显示引用结果
-            await vscode.commands.executeCommand('calicoColors.colorsView.focus');
             // 显示引用结果
             provider.showReferences(fileName, references);
         }
@@ -101,8 +99,8 @@ async function findFileReferences(targetFilePath, workspaceRoot) {
                 }
             }
             else if (stat.isFile()) {
-                // 检查 JS/TS/Vue 文件
-                if (file.match(/\.(js|ts|jsx|tsx|vue)$/)) {
+                // 只检查 JS/TS 文件
+                if (file.match(/\.(js|ts|jsx|tsx)$/)) {
                     searchInFile(fullPath);
                 }
             }
@@ -111,24 +109,8 @@ async function findFileReferences(targetFilePath, workspaceRoot) {
     function searchInFile(filePath) {
         try {
             const content = fs.readFileSync(filePath, 'utf8');
-            const isVueFile = filePath.endsWith('.vue');
-            let linesToSearch = [];
-            let lineOffset = 0;
-            if (isVueFile) {
-                // 解析 Vue 文件，提取 <script> 标签内容
-                const scriptMatch = content.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-                if (scriptMatch) {
-                    const scriptContent = scriptMatch[1];
-                    const beforeScript = content.substring(0, content.indexOf(scriptMatch[0]));
-                    lineOffset = beforeScript.split('\n').length - 1;
-                    linesToSearch = scriptContent.split('\n');
-                }
-            }
-            else {
-                // 普通 JS/TS 文件
-                linesToSearch = content.split('\n');
-            }
-            linesToSearch.forEach((line, index) => {
+            const lines = content.split('\n');
+            lines.forEach((line, index) => {
                 // 查找 import 语句
                 if (line.includes('import') && line.includes(targetFileName)) {
                     // 检查是否是导入目标文件
@@ -136,8 +118,7 @@ async function findFileReferences(targetFilePath, workspaceRoot) {
                     const match = line.match(importRegex);
                     if (match) {
                         const importPath = match[1];
-                        const actualLineNumber = isVueFile ? index + lineOffset + 1 : index + 1;
-                        console.log(`在文件 ${filePath} 第 ${actualLineNumber} 行找到导入: ${importPath}`);
+                        console.log(`在文件 ${filePath} 第 ${index + 1} 行找到导入: ${importPath}`);
                         // 解析导入路径
                         const resolvedPath = resolveImportPath(filePath, importPath, workspaceRoot);
                         console.log(`解析后的路径: ${resolvedPath}`);
@@ -145,7 +126,7 @@ async function findFileReferences(targetFilePath, workspaceRoot) {
                         if (resolvedPath === targetFilePath) {
                             references.push({
                                 file: filePath,
-                                line: actualLineNumber,
+                                line: index + 1,
                                 content: line.trim()
                             });
                             console.log("匹配成功！添加到引用列表");
@@ -236,11 +217,6 @@ class ColorsViewProvider {
                     break;
             }
         }, undefined);
-        // 如果有待显示的引用，现在显示它们
-        if (this._pendingReferences) {
-            this.showReferences(this._pendingReferences.fileName, this._pendingReferences.references);
-            this._pendingReferences = undefined;
-        }
     }
     addText(text) {
         if (this._view) {
@@ -257,12 +233,13 @@ class ColorsViewProvider {
             });
         }
         else {
-            console.log("Webview未初始化，缓存引用数据等待显示");
-            // 缓存引用数据，等WebView初始化后显示
-            this._pendingReferences = { fileName, references };
+            console.error("Webview未初始化，无法显示引用结果");
+            vscode.window.showErrorMessage("请先在左侧活动栏中打开'反向查找引用'面板");
         }
     }
     _getHtmlForWebview(webview) {
+        // Get the VS Code webview UI toolkit
+        const toolkitUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "node_modules", "@vscode", "webview-ui-toolkit", "dist", "toolkit.js"));
         // Use a nonce to only allow a specific script to be run.
         const nonce = getNonce();
         return `<!DOCTYPE html>
@@ -272,7 +249,9 @@ class ColorsViewProvider {
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<title>反向查找引用</title>
 				
+				<!-- VS Code WebView UI Toolkit -->
 				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+				<script type="module" nonce="${nonce}" src="${toolkitUri}"></script>
 				
 				<style>
 					body {
@@ -295,11 +274,6 @@ class ColorsViewProvider {
 						padding: 24px;
 						color: var(--vscode-descriptionForeground);
 						font-style: italic;
-					}
-
-					.container {
-						width: 100%;
-						overflow-x: hidden;
 					}
 				</style>
 			</head>
@@ -368,74 +342,50 @@ class ColorsViewProvider {
 							return;
 						}
 
-						// 简洁的引用列表显示
+						// 使用 VS Code UI 组件创建树形视图
+						const treeView = document.createElement("vscode-tree");
+						
 						const groupedReferences = groupReferencesByFile(references);
 						
 						Object.entries(groupedReferences).forEach(([filePath, fileReferences]) => {
+							// 创建文件树项
+							const fileTreeItem = document.createElement("vscode-tree-item");
+							
 							const fileNameOnly = filePath.split('/').pop();
 							const fileDir = filePath.substring(0, filePath.lastIndexOf('/'));
 							
-							// 根据文件扩展名确定标签
-							let fileTypeLabel = 'JS';
-							let fileTypeColor = 'var(--vscode-badge-background)';
-							if (filePath.endsWith('.vue')) {
-								fileTypeLabel = 'VUE';
-								fileTypeColor = '#4FC08D'; // Vue 绿色
-							} else if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
-								fileTypeLabel = 'TS';
-								fileTypeColor = '#3178C6'; // TypeScript 蓝色
-							}
+							// 设置文件节点内容
+							const fileLabel = document.createElement("div");
+							fileLabel.style.display = "flex";
+							fileLabel.style.alignItems = "center";
+							fileLabel.style.width = "100%";
 							
-							// 文件头部
-							const fileHeader = document.createElement("div");
-							fileHeader.style.display = "flex";
-							fileHeader.style.alignItems = "center";
-							fileHeader.style.padding = "6px 8px";
-							fileHeader.style.marginBottom = "4px";
-							fileHeader.style.backgroundColor = "var(--vscode-sideBar-background)";
-							fileHeader.style.borderRadius = "3px";
-							fileHeader.style.cursor = "pointer";
+							fileLabel.innerHTML = 
+								'<vscode-tag style="margin-right: 8px;">JS</vscode-tag>' +
+								'<span style="color: var(--vscode-symbolIcon-fileForeground, #DCDCAA); font-weight: 500;">' + fileNameOnly + '</span>' +
+								'<span style="color: var(--vscode-descriptionForeground); font-size: 12px; margin-left: 8px;">' + fileDir + '</span>' +
+								'<vscode-badge style="margin-left: auto;">' + fileReferences.length + '</vscode-badge>';
 							
-							fileHeader.innerHTML = 
-								'<span class="collapse-icon" style="margin-right: 6px; color: var(--vscode-foreground); font-size: 12px; transition: transform 0.2s ease; flex-shrink: 0;">▼</span>' +
-								'<span style="background: ' + fileTypeColor + '; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-right: 8px; flex-shrink: 0;">' + fileTypeLabel + '</span>' +
-								'<span style="color: var(--vscode-symbolIcon-fileForeground, #DCDCAA); font-weight: 500; flex-shrink: 0;">' + fileNameOnly + '</span>' +
-								'<span style="color: var(--vscode-descriptionForeground); font-size: 12px; margin-left: 8px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">' + fileDir + '</span>' +
-								'<span style="background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 8px; flex-shrink: 0;">' + fileReferences.length + '</span>';
-							
-							// 悬停效果
-							fileHeader.addEventListener("mouseenter", () => {
-								fileHeader.style.backgroundColor = "var(--vscode-list-hoverBackground)";
-							});
-							
-							fileHeader.addEventListener("mouseleave", () => {
-								fileHeader.style.backgroundColor = "var(--vscode-sideBar-background)";
-							});
-							
-							container.appendChild(fileHeader);
+							fileTreeItem.appendChild(fileLabel);
 
-							// 创建引用列表容器
-							const referencesContainer = document.createElement("div");
-							referencesContainer.className = "references-container";
-
-							// 引用列表
+							// 为每个引用创建子树项
 							fileReferences.forEach(ref => {
-								const refItem = document.createElement("div");
-								refItem.style.display = "flex";
-								refItem.style.alignItems = "center";
-								refItem.style.padding = "4px 16px";
-								refItem.style.cursor = "pointer";
-								refItem.style.borderRadius = "3px";
-								refItem.style.marginBottom = "2px";
+								const refTreeItem = document.createElement("vscode-tree-item");
 								
 								const highlightedContent = highlightImportContent(ref.content, fileName);
 								
-								refItem.innerHTML = 
-									'<span style="min-width: 30px; font-size: 11px; color: var(--vscode-editorLineNumber-foreground); text-align: right; margin-right: 12px; font-family: var(--vscode-editor-font-family); flex-shrink: 0;">' + ref.line + '</span>' +
-									'<span style="flex: 1; font-size: 12px; font-family: var(--vscode-editor-font-family); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + highlightedContent + '</span>';
+								const refLabel = document.createElement("div");
+								refLabel.style.display = "flex";
+								refLabel.style.alignItems = "center";
+								refLabel.style.cursor = "pointer";
+								refLabel.style.padding = "4px 0";
+								
+								refLabel.innerHTML = 
+									'<span style="min-width: 30px; font-size: 11px; color: var(--vscode-editorLineNumber-foreground); text-align: right; margin-right: 12px; font-family: var(--vscode-editor-font-family);">' + ref.line + '</span>' +
+									'<span style="flex: 1; font-size: 12px; font-family: var(--vscode-editor-font-family);">' + highlightedContent + '</span>';
 								
 								// 点击跳转功能
-								refItem.addEventListener("click", () => {
+								refLabel.addEventListener("click", () => {
 									vscode.postMessage({ 
 										type: "openFile", 
 										filePath: ref.file,
@@ -444,33 +394,22 @@ class ColorsViewProvider {
 								});
 
 								// 悬停效果
-								refItem.addEventListener("mouseenter", () => {
-									refItem.style.backgroundColor = "var(--vscode-list-hoverBackground)";
+								refLabel.addEventListener("mouseenter", () => {
+									refLabel.style.backgroundColor = "var(--vscode-list-hoverBackground)";
 								});
 								
-								refItem.addEventListener("mouseleave", () => {
-									refItem.style.backgroundColor = "transparent";
+								refLabel.addEventListener("mouseleave", () => {
+									refLabel.style.backgroundColor = "transparent";
 								});
 								
-								referencesContainer.appendChild(refItem);
+								refTreeItem.appendChild(refLabel);
+								fileTreeItem.appendChild(refTreeItem);
 							});
 
-							// 添加折叠/展开功能
-							fileHeader.addEventListener("click", () => {
-								const icon = fileHeader.querySelector(".collapse-icon");
-								const isCollapsed = icon.textContent === "▶";
-								
-								if (isCollapsed) {
-									icon.textContent = "▼";
-									referencesContainer.style.display = "block";
-								} else {
-									icon.textContent = "▶";
-									referencesContainer.style.display = "none";
-								}
-							});
-
-							container.appendChild(referencesContainer);
+							treeView.appendChild(fileTreeItem);
 						});
+
+						container.appendChild(treeView);
 					}
 				</script>
 			</body>
@@ -486,4 +425,4 @@ function getNonce() {
     }
     return text;
 }
-//# sourceMappingURL=extension.js.map
+//# sourceMappingURL=extension-fake-ui.js.map

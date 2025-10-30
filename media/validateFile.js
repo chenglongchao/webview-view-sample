@@ -1,4 +1,4 @@
-import { path } from "path";
+const path = require("path");
 // 验证目标文件名。
 function validateFile(targetFileName) {
     const validExtensions = ['.ts', '.js', '.tsx', '.jsx'];
